@@ -1,142 +1,163 @@
-import { useState, useEffect } from 'react'; // <--- FIXED: Removed ', use'
+import { useState, useEffect } from 'react';
 import TaskInput from '../components/TaskInput';
 import TaskList from '../components/TaskList';
 
 function HomePage() {
-  // 1. STATE: Start with empty array + loading states
+  // 1. STATE MANAGEMENT
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('all');      // 'all', 'completed', 'pending'
+  const [searchTerm, setSearchTerm] = useState(''); // Search text
 
-  // 2. EFFECT: Fetch data whenever the 'filter' changes
+  // 2. THE BRAIN: FETCH DATA (Search + Filter + Debounce)
   useEffect(() => {
+    // Controller to cancel old requests if user types fast
+    const controller = new AbortController();
+
     const fetchTasks = async () => {
       try {
-        setIsLoading(true); // Show loading spinner while switching tabs
-        
-        // A. Base URL
-        let url = 'http://localhost:5000/tasks';
+        setIsLoading(true);
 
-        // B. Modify URL based on filter state
+        // A. Build the URL smartly (No string concatenation errors)
+        const url = new URL('http://localhost:5000/tasks');
+
+        // B. Add Filter Params
         if (filter === 'completed') {
-          url += '?completed=true';
+          url.searchParams.append('completed', 'true');
         } else if (filter === 'pending') {
-          url += '?completed=false';
+          url.searchParams.append('completed', 'false');
         }
+
+        // C. Add Search Params
+        if (searchTerm) {
+          url.searchParams.append('q', searchTerm);
+        }
+
+        // Debugging: See exactly what we are asking the server for
+        console.log("Fetching URL:", url.toString());
+
+        // D. The Request (Connected to the Abort Signal)
+        const response = await fetch(url, { signal: controller.signal });
         
-        // C. The Fetch
-        console.log("Fetching URL:", url); // Debugging: See exactly what we ask for
-        const response = await fetch(url);
-        
-        if (!response.ok) throw new Error('Failed to fetch');
+        if (!response.ok) throw new Error('Failed to fetch tasks');
         
         const data = await response.json();
         setTasks(data);
         setError(null);
+
       } catch (err) {
-        setError(err.message);
-        setTasks([]);
+        // E. Ignore errors caused by us cancelling the request
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setTasks([]);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTasks();
+    // F. Debounce Logic (Wait 500ms before sending request)
+    const timerId = setTimeout(() => {
+      fetchTasks();
+    }, 500);
 
-  }, [filter]); // <--- CRITICAL: Run this effect when 'filter' changes!
-
-  // 3. CREATE: Add a task to the server
-  const addTask = async (taskText) => {
-    // A. Create the task object (Server will create the ID, so we don't need Date.now())
-    const newTask = { 
-      text: taskText, 
-      completed: false 
+    // G. Cleanup (Runs if user types again or component unmounts)
+    return () => {
+      clearTimeout(timerId); // Stop the timer
+      controller.abort();    // Cancel the network request
     };
 
+  }, [filter, searchTerm]); // Re-run whenever Filter or Search changes
+
+
+  // 3. CREATE TASK (POST)
+  const addTask = async (taskText) => {
+    const newTask = { text: taskText, completed: false };
+    
     try {
-      // B. Send the POST request
       const response = await fetch('http://localhost:5000/tasks', {
-        method: 'POST', // <--- Tell server we are ADDING data
-        headers: {
-          'Content-Type': 'application/json', // <--- Tell server we are sending JSON
-        },
-        body: JSON.stringify(newTask), // <--- Convert JS object to text
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTask),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to add task');
-      }
+      if (!response.ok) throw new Error('Failed to add task');
 
-      // C. Get the saved task back (It now has a real ID from the server!)
-      const data = await response.json();
-
-      // D. Update the UI with the *real* saved task
-      setTasks([...tasks, data]); 
-      
+      const data = await response.json(); // Get the saved task (with ID)
+      setTasks([...tasks, data]);         // Add to UI
     } catch (err) {
       setError("Error adding task: " + err.message);
     }
   };
 
-  // 5. UPDATE: Toggle completed status on server
-  const toggleComplete = async (IdtoToggle) => {
-    // 1. Find the task we want to toggle
-    const taskToToggle = tasks.find((task) => task.id === IdtoToggle);
-    
-    // 2. Calculate the new status (Opposite of current)
+
+  // 4. UPDATE TASK (PATCH)
+  const toggleComplete = async (id) => {
+    const taskToToggle = tasks.find((t) => t.id === id);
     const updatedStatus = { completed: !taskToToggle.completed };
 
     try {
-      // 3. Send a PATCH request (PATCH means "Update only part of the data")
-      const response = await fetch(`http://localhost:5000/tasks/${IdtoToggle}`, {
+      const response = await fetch(`http://localhost:5000/tasks/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStatus),
       });
 
       if (!response.ok) throw new Error("Failed to update task");
 
-      // 4. Update the UI with the new data from server
-      const updatedTaskFromServer = await response.json();
+      const data = await response.json();
       
-      setTasks(tasks.map((task) => 
-        task.id === IdtoToggle ? updatedTaskFromServer : task
-      ));
-
+      // Update only the matching task in the list
+      setTasks(tasks.map((t) => (t.id === id ? data : t)));
     } catch (error) {
-      setError("Error updating task: " + error.message);
+      setError(error.message);
     }
   };
 
-  // 4. DELETE: Remove task from server
-  const deleteTask = async (IdtoDelete) => {
-    try {
-      // A. Tell Server to delete
-      await fetch(`http://localhost:5000/tasks/${IdtoDelete}`, {
-        method: 'DELETE',
-      });
 
-      // B. Update UI (Filter out the deleted one)
-      setTasks(tasks.filter((task) => task.id !== IdtoDelete));
-    
+  // 5. DELETE TASK (DELETE)
+  const deleteTask = async (id) => {
+    try {
+      await fetch(`http://localhost:5000/tasks/${id}`, { method: 'DELETE' });
+      
+      // Filter out the deleted task from UI
+      setTasks(tasks.filter((t) => t.id !== id));
     } catch (error) {
       setError("Failed to delete task");
     }
   };
+
+
+  // 6. THE UI RENDER
   return (
     <div className='home-page'>
       <h1>My Task Manager</h1>
 
-      {/* Show Loading or Error Status */}
       {isLoading && <p style={{ color: 'blue' }}>Loading tasks...</p>}
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
       <TaskInput onAddTask={addTask} />
-      {/* FILTER BUTTONS */}
-      <div className="filter-buttons" >
+
+      {/* SEARCH BAR */}
+      <div className="search-bar" style={{ marginBottom: '15px' }}>
+        <input 
+          type="text" 
+          placeholder="Search tasks..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px',
+            borderRadius: '8px',
+            border: '1px solid #ddd',
+            fontSize: '1rem'
+          }}
+        />
+      </div>
+
+      {/* FILTER TABS */}
+      <div className="filter-buttons">
         <button onClick={() => setFilter('all')} disabled={filter === 'all'}>
           All
         </button>
@@ -148,7 +169,7 @@ function HomePage() {
         </button>
       </div>
 
-      
+      {/* TASK LIST */}
       <TaskList 
         tasks={tasks} 
         onDeleteTask={deleteTask} 

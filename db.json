@@ -1,19 +1,8 @@
 {
   "tasks": [
-    {
-      "id": "1",
-      "text": "Setup backend environment",
-      "completed": true
-    },
-    {
-      "id": "2",
-      "text": "Refactor React to use API",
-      "completed": false
-    },
-    {
-      "id": "1bbf",
-      "text": "Test Persistence",
-      "completed": false
-    }
+    { "id": "1", "text": "Test Persistence", "completed": false },
+    { "id": "2", "text": "Buy Milk", "completed": true },
+    { "id": "3", "text": "Learn React", "completed": false },
+    { "id": "4", "text": "Test Search Function", "completed": true }
   ]
 }
