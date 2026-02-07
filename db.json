@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "text": "Setup backend environment",
+      "completed": true
+    },
+    {
+      "id": "2",
+      "text": "Refactor React to use API",
+      "completed": true
+    },
+    {
+      "id": "1bbf",
+      "text": "Test Persistence",
+      "completed": false
+    }
+  ]
+}
