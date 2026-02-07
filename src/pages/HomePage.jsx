@@ -7,24 +7,34 @@ function HomePage() {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all');
 
-  // 2. EFFECT: Fetch data when the page loads
+  // 2. EFFECT: Fetch data whenever the 'filter' changes
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        console.log("Fetching started...");
-        const response = await fetch('http://localhost:5000/tasks');
+        setIsLoading(true); // Show loading spinner while switching tabs
         
-        if (!response.ok) {
-          throw new Error('Failed to connect to the server');
+        // A. Base URL
+        let url = 'http://localhost:5000/tasks';
+
+        // B. Modify URL based on filter state
+        if (filter === 'completed') {
+          url += '?completed=true';
+        } else if (filter === 'pending') {
+          url += '?completed=false';
         }
         
+        // C. The Fetch
+        console.log("Fetching URL:", url); // Debugging: See exactly what we ask for
+        const response = await fetch(url);
+        
+        if (!response.ok) throw new Error('Failed to fetch');
+        
         const data = await response.json();
-        console.log("Data received:", data); // Check your console for this!
         setTasks(data);
         setError(null);
       } catch (err) {
-        console.error("Error fetching:", err);
         setError(err.message);
         setTasks([]);
       } finally {
@@ -33,7 +43,8 @@ function HomePage() {
     };
 
     fetchTasks();
-  }, []);
+
+  }, [filter]); // <--- CRITICAL: Run this effect when 'filter' changes!
 
   // 3. CREATE: Add a task to the server
   const addTask = async (taskText) => {
@@ -124,6 +135,20 @@ function HomePage() {
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
       <TaskInput onAddTask={addTask} />
+      {/* FILTER BUTTONS */}
+      <div className="filter-buttons" >
+        <button onClick={() => setFilter('all')} disabled={filter === 'all'}>
+          All
+        </button>
+        <button onClick={() => setFilter('pending')} disabled={filter === 'pending'}>
+          Pending
+        </button>
+        <button onClick={() => setFilter('completed')} disabled={filter === 'completed'}>
+          Completed
+        </button>
+      </div>
+
+      
       <TaskList 
         tasks={tasks} 
         onDeleteTask={deleteTask} 

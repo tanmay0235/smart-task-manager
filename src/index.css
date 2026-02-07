@@ -145,3 +145,39 @@ h1 {
   background-color: #fee2e2;
   color: var(--danger);
 }
+/* --- Filter Tabs --- */
+.filter-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+  justify-content: center; /* Center the tabs nicely */
+}
+
+.filter-buttons button {
+  background-color: #fff;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 8px; /* Matches your input radius */
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover Effect for non-active buttons */
+.filter-buttons button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: #eef2ff; /* Very light indigo tint */
+}
+
+/* Active State (Since we used disabled={true} for the active tab) */
+.filter-buttons button:disabled {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  opacity: 1; /* Override default disabled dimming */
+  cursor: default;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
