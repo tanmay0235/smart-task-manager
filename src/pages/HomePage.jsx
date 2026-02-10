@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import TaskInput from '../components/TaskInput';
 import TaskList from '../components/TaskList';
+import { suggestSubtasks } from '../services/aiService';
 
 function HomePage() {
   // 1. STATE MANAGEMENT
@@ -9,6 +10,7 @@ function HomePage() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');      // 'all', 'completed', 'pending'
   const [searchTerm, setSearchTerm] = useState(''); // Search text
+  const [isThinking, setIsThinking] = useState(false);
 
   // 2. THE BRAIN: FETCH DATA (Search + Filter + Debounce)
   useEffect(() => {
@@ -128,7 +130,33 @@ function HomePage() {
     }
   };
 
+  // ---------------------------
+  // AI BREAKDOWN FUNCTION
+  // ---------------------------
+  const handleAiBreakdown = async (id, taskText) => {
+  // 1. Turn on the "Thinking" mode
+  setIsThinking(true);
 
+  try {
+    const subtasks = await suggestSubtasks(taskText);
+
+    // ... (Your existing code to add tasks) ...
+    // (Just keep the logic you already have here to adding tasks)
+    // If you need the logic again, it's basically:
+    const newTasks = subtasks.map(text => ({
+      id: Date.now() + Math.random(),
+      text,
+      completed: false
+    }));
+    setTasks(prev => [...prev, ...newTasks]);
+
+  } catch (error) {
+    console.error("AI Error", error);
+  } finally {
+    // 2. Turn off "Thinking" mode (Done!)
+    setIsThinking(false);
+  }
+};
   // 6. THE UI RENDER
   return (
     <div className='home-page'>
@@ -168,12 +196,27 @@ function HomePage() {
           Completed
         </button>
       </div>
+      {/* The Loading Badge */}
+{isThinking && (
+  <div style={{ 
+    padding: "10px", 
+    background: "#e0f7fa", 
+    color: "#006064", 
+    borderRadius: "8px", 
+    margin: "10px 0",
+    textAlign: "center",
+    fontWeight: "bold"
+  }}>
+    ✨ AI is brainstorming... please wait!
+  </div>
+)}
 
       {/* TASK LIST */}
       <TaskList 
         tasks={tasks} 
         onDeleteTask={deleteTask} 
         onToggleComplete={toggleComplete} 
+        onAiBreakdown={handleAiBreakdown}
       />
     </div>
   );
