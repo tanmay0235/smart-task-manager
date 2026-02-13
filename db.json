@@ -9,11 +9,6 @@
       "id": "2",
       "text": "Buy Milk",
       "completed": false
-    },
-    {
-      "id": "3",
-      "text": "Learn React",
-      "completed": false
     }
   ]
 }

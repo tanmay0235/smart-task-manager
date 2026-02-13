@@ -1,10 +1,14 @@
+/* src/App.jsx */
 import HomePage from './pages/HomePage';
+import { TasksProvider } from './Context/TasksContext'; // 1. Import the Power Source
 
 function App() {
   return (
-    <div className="app-container">
+    // 2. Wrap the app. Now everything inside can use the "Context".
+    <TasksProvider>
       <HomePage />
-    </div>
+    </TasksProvider>
   );
 }
+
 export default App;
