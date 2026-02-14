@@ -81,26 +81,44 @@ export function TasksProvider({ children }) {
       console.error("Error updating task:", error);
     }
   };
+  // --- NEW: EDIT (Update Text) ---
+  const editTask = async (id, newText) => {
+    // 1. Optimistic Update (Update screen instantly)
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, text: newText } : t
+    ));
 
-  // --- 5. AI BREAKDOWN (The Special Sauce) ---
-  const handleAiBreakdown = async (id, taskText) => {
+    // 2. Server Update (Tell the database)
+    try {
+      await fetch(`${API_URL}/${id}`, {
+        method: "PATCH", // PATCH means "update just a part of it"
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: newText })
+      });
+    } catch (error) {
+      console.error("Error editing task:", error);
+    }
+  };
+
+// --- 5. AI BREAKDOWN (Updated for Tree Structure) ---
+  const handleAiBreakdown = async (parentId, taskText) => {
     setIsThinking(true);
     try {
       // 1. Ask Gemini
       const subtasks = await suggestSubtasks(taskText);
       
-      // 2. Create sub-tasks locally
+      // 2. Create sub-tasks with the PARENT ID tag
       const newTasks = subtasks.map(step => ({
         id: String(Date.now() + Math.random()),
-        text: `↳ ${step}`,
+        text: step,      // We removed the "↳" arrow because the UI will handle indentation now!
+        parentId: parentId, // 👈 THE CRITICAL LINK (This child belongs to this father)
         completed: false
       }));
 
-      // 3. Update State immediately
+      // 3. Update State
       setTasks(prev => [...prev, ...newTasks]);
 
-      // 4. Save each new subtask to the Server (Loop)
-      // Note: In a real app, we'd use a "Batch Create" endpoint, but JSON Server is simple.
+      // 4. Save to Server
       for (const task of newTasks) {
         await fetch(API_URL, {
           method: "POST",
@@ -115,13 +133,13 @@ export function TasksProvider({ children }) {
       setIsThinking(false);
     }
   };
-
   const value = {
     tasks,
     isThinking,
     addTask,
     deleteTask,
     toggleComplete,
+    editTask,
     handleAiBreakdown
   };
 

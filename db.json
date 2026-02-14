@@ -1,13 +1,25 @@
 {
   "tasks": [
     {
-      "id": "1",
-      "text": "Test Persistence",
+      "id": "1771074219821",
+      "text": "Build Kite",
       "completed": false
     },
     {
-      "id": "2",
-      "text": "Buy Milk",
+      "id": "1771074309838",
+      "text": "Buy stocks",
+      "completed": false
+    },
+    {
+      "id": "1771074317481.0615",
+      "text": "Step 1: Acquire lightweight spars to serve as the structural framework.",
+      "parentId": "1771074227007.6987",
+      "completed": false
+    },
+    {
+      "id": "1771074317481.0354",
+      "text": "Step 2: Source durable sail material for the main body construction.",
+      "parentId": "1771074227007.6987",
       "completed": false
     }
   ]

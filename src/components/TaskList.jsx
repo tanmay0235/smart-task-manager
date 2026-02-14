@@ -1,21 +1,22 @@
+/* src/components/TaskList.jsx */
 import TaskItem from './TaskItem';
 
-// 1. We receive 'onAiBreakdown' (Match the prop name from HomePage)
-function TaskList({ tasks, onDeleteTask, onToggleComplete, onAiBreakdown }) {
+function TaskList({ tasks }) {
   
-  // 2. Now this log works because the variable exists
-  console.log("TaskList received tool?", onAiBreakdown);
+  // 1. Filter: Only get tasks that have NO parent (The Root Folders)
+  const rootTasks = tasks.filter(task => !task.parentId);
+
+  if (tasks.length === 0) {
+    return <div style={{ textAlign: "center", color: "#888" }}>No tasks yet! 👆</div>;
+  }
 
   return (
     <div className="task-list">
-      {tasks.map((task) => (
+      {/* 2. Map only the Root Tasks */}
+      {rootTasks.map((task) => (
         <TaskItem 
           key={task.id} 
           task={task} 
-          onDeleteTask={onDeleteTask} 
-          onToggleComplete={onToggleComplete}
-          // 3. Pass it down to the Item
-          onAiBreakdown={onAiBreakdown} 
         />
       ))}
     </div>
