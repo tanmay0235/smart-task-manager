@@ -5,14 +5,20 @@ import { useTasks } from '../Context/TasksContext';
 function TaskItem({ task }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(task.text);
-  const [isExpanded, setIsExpanded] = useState(true); // New: Folders can be open/closed
+  const [isExpanded, setIsExpanded] = useState(true);
   
-  // 1. Get ALL tasks from context to find our children
   const { tasks, deleteTask, toggleComplete, editTask, handleAiBreakdown } = useTasks();
 
-  // 2. Find MY children (Tasks that point to ME as their parent)
+  // 1. Find Children & Calculate Progress
   const childTasks = tasks.filter(t => t.parentId === task.id);
   const hasChildren = childTasks.length > 0;
+  
+  const totalChildren = childTasks.length;
+  const completedChildren = childTasks.filter(t => t.completed).length;
+  const progress = totalChildren === 0 ? 0 : (completedChildren / totalChildren) * 100;
+  
+  // Color: Red -> Yellow -> Green
+  const progressColor = progress === 100 ? "var(--success)" : "var(--accent)";
 
   const handleSave = () => {
     if (editedText.trim()) {
@@ -22,13 +28,14 @@ function TaskItem({ task }) {
   };
 
   return (
-    // Wrap everything in a container to hold the item + its children
     <div className="task-tree-node" style={{ marginBottom: "8px" }}>
       
-      {/* --- THE MAIN TASK ROW --- */}
+      {/* --- MAIN CARD --- */}
       <div className="task-item" style={{ 
-          // Visual tweak: Different border if it's a "folder"
-          borderColor: hasChildren ? "var(--accent)" : "rgba(255,255,255,0.1)" 
+          // Dynamic Border Color
+          borderColor: hasChildren ? "var(--accent)" : "rgba(255,255,255,0.1)",
+          position: "relative",
+          overflow: "hidden"
         }}>
         
         {/* CHECKBOX */}
@@ -38,7 +45,7 @@ function TaskItem({ task }) {
           onChange={() => toggleComplete(task.id)} 
         />
 
-        {/* EDITING MODE */}
+        {/* --- EDIT OR VIEW MODE --- */}
         {isEditing ? (
           <div style={{ flexGrow: 1, display: 'flex', gap: '10px', marginLeft: '10px' }}>
             <input 
@@ -50,7 +57,6 @@ function TaskItem({ task }) {
             <button onClick={handleSave} style={{ background: "var(--success)", color: "white" }}>Save</button>
           </div>
         ) : (
-          /* VIEWING MODE */
           <>
             <span style={{ 
               flexGrow: 1, 
@@ -61,7 +67,7 @@ function TaskItem({ task }) {
               {task.text}
             </span>
 
-            {/* EXPAND/COLLAPSE BUTTON (Only if it has children) */}
+            {/* FOLDER TOGGLE */}
             {hasChildren && (
               <button 
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -83,19 +89,31 @@ function TaskItem({ task }) {
             <button onClick={() => deleteTask(task.id)} className="btn-delete">🗑️</button>
           </>
         )}
+
+        {/* --- PROGRESS BAR (INSIDE THE CARD NOW) --- */}
+        {hasChildren && (
+          <div style={{
+            position: "absolute",
+            bottom: "0",
+            left: "0",
+            height: "4px",
+            width: `${progress}%`,
+            backgroundColor: progressColor,
+            transition: "width 0.3s ease-in-out"
+          }} />
+        )}
+
       </div>
 
-      {/* --- THE CHILDREN (RECURSION) --- */}
-      {/* If expanded and has children, render them indented */}
+      {/* --- CHILDREN (RECURSION) --- */}
       {hasChildren && isExpanded && (
         <div style={{ 
-          marginLeft: "24px",  // Indentation
+          marginLeft: "24px",
           marginTop: "8px",
           paddingLeft: "12px", 
-          borderLeft: "2px solid rgba(255,255,255,0.1)" // The "Folder Line" visual
+          borderLeft: "2px solid rgba(255,255,255,0.1)"
         }}>
           {childTasks.map(child => (
-            // 🔄 RECURSION: The Component calls itself!
             <TaskItem key={child.id} task={child} />
           ))}
         </div>

@@ -1,17 +1,14 @@
-/* src/context/TasksContext.jsx */
 import { createContext, useContext, useState, useEffect } from "react";
-import { suggestSubtasks } from "../services/aiService"; // Import our AI Brain
+import { suggestSubtasks } from "../services/aiService"; 
 
-// 1. Create the Context
 const TasksContext = createContext();
 
-// 2. The Provider (The Brain)
 export function TasksProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [isThinking, setIsThinking] = useState(false);
   
-  // The Address of your Backend
-  const API_URL = "http://localhost:5000/tasks";
+  // 1. UPDATED ADDRESS
+  const API_URL = "http://localhost:5000/api/tasks";
 
   // --- 1. FETCH (Load on startup) ---
   useEffect(() => {
@@ -19,41 +16,45 @@ export function TasksProvider({ children }) {
       try {
         const response = await fetch(API_URL);
         const data = await response.json();
-        setTasks(data); // Put the server data into State
+        
+        // TRANSLATOR: React likes 'id', but Mongo uses '_id'. Let's map it!
+        const translatedTasks = data.map(dbTask => ({
+            ...dbTask,
+            id: dbTask._id 
+        }));
+        
+        setTasks(translatedTasks);
       } catch (error) {
         console.error("❌ Failed to fetch tasks:", error);
       }
     };
 
     fetchTasks();
-  }, []); // Run once when app starts
+  }, []); 
 
   // --- 2. ADD (Send to Server) ---
   const addTask = async (text) => {
-    const newTask = { 
-      id: String(Date.now()), // JSON Server likes String IDs
-      text, 
-      completed: false 
-    };
-
-    // Optimistic Update (Show it immediately)
-    setTasks(prev => [...prev, newTask]);
-
     try {
-      await fetch(API_URL, {
+      // 1. Send to database FIRST to get the real permanent ID
+      const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newTask)
+        body: JSON.stringify({ text, completed: false, parentId: null })
       });
+      
+      const savedTask = await response.json();
+      
+      // 2. Put the REAL task into React state
+      const taskForScreen = { ...savedTask, id: savedTask._id };
+      setTasks(prev => [...prev, taskForScreen]);
+
     } catch (error) {
       console.error("Error adding task:", error);
-      // Rollback if server fails (optional advanced step)
     }
   };
 
   // --- 3. DELETE (Tell Server to remove) ---
   const deleteTask = async (id) => {
-    // Optimistic Update
     setTasks(prev => prev.filter(t => t.id !== id));
 
     try {
@@ -63,17 +64,16 @@ export function TasksProvider({ children }) {
     }
   };
 
-  // --- 4. TOGGLE (Tell Server to update) ---
+  // --- 4. TOGGLE & EDIT (Tell Server to update) ---
   const toggleComplete = async (id) => {
     const task = tasks.find(t => t.id === id);
     const updatedTask = { ...task, completed: !task.completed };
 
-    // Optimistic Update
     setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
 
     try {
       await fetch(`${API_URL}/${id}`, {
-        method: "PUT", // or PATCH
+        method: "PUT", 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedTask)
       });
@@ -81,17 +81,15 @@ export function TasksProvider({ children }) {
       console.error("Error updating task:", error);
     }
   };
-  // --- NEW: EDIT (Update Text) ---
+
   const editTask = async (id, newText) => {
-    // 1. Optimistic Update (Update screen instantly)
     setTasks(prev => prev.map(t => 
       t.id === id ? { ...t, text: newText } : t
     ));
 
-    // 2. Server Update (Tell the database)
     try {
       await fetch(`${API_URL}/${id}`, {
-        method: "PATCH", // PATCH means "update just a part of it"
+        method: "PUT", // Changed to PUT to match your backend route
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: newText })
       });
@@ -100,32 +98,28 @@ export function TasksProvider({ children }) {
     }
   };
 
-// --- 5. AI BREAKDOWN (Updated for Tree Structure) ---
+// --- 5. AI BREAKDOWN ---
   const handleAiBreakdown = async (parentId, taskText) => {
     setIsThinking(true);
     try {
-      // 1. Ask Gemini
       const subtasks = await suggestSubtasks(taskText);
+      const savedSubtasks = [];
       
-      // 2. Create sub-tasks with the PARENT ID tag
-      const newTasks = subtasks.map(step => ({
-        id: String(Date.now() + Math.random()),
-        text: step,      // We removed the "↳" arrow because the UI will handle indentation now!
-        parentId: parentId, // 👈 THE CRITICAL LINK (This child belongs to this father)
-        completed: false
-      }));
-
-      // 3. Update State
-      setTasks(prev => [...prev, ...newTasks]);
-
-      // 4. Save to Server
-      for (const task of newTasks) {
-        await fetch(API_URL, {
+      // Save each to server FIRST so the database generates real IDs
+      for (const step of subtasks) {
+        const response = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(task)
+          body: JSON.stringify({ text: step, parentId: parentId, completed: false })
         });
+        
+        const dbTask = await response.json();
+        // Translate the Mongo _id before saving to state
+        savedSubtasks.push({ ...dbTask, id: dbTask._id });
       }
+
+      // Update Screen with the real saved tasks
+      setTasks(prev => [...prev, ...savedSubtasks]);
 
     } catch (error) {
       console.error("AI Error:", error);
@@ -133,6 +127,7 @@ export function TasksProvider({ children }) {
       setIsThinking(false);
     }
   };
+
   const value = {
     tasks,
     isThinking,
@@ -150,7 +145,6 @@ export function TasksProvider({ children }) {
   );
 }
 
-// Custom Hook
 export function useTasks() {
   return useContext(TasksContext);
 }
