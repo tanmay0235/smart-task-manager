@@ -8,6 +8,7 @@ export function TasksProvider({ children }) {
   const [isThinking, setIsThinking] = useState(false);
   
   // 1. UPDATED ADDRESS
+  // Updated the url
   const API_URL = "https://smart-task-manager-0qdz.onrender.com/api/tasks";
 
   // --- 1. FETCH (Load on startup) ---
